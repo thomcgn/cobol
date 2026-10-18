@@ -11,15 +11,19 @@
        
        
        01 Fehlercode PIC 9 VALUE 0.
-          88 Kein-Fehler          VALUE 0.
-          88 Keine-Zahl           VALUE 1.
-          88 Betrag-Nicht-Positiv VALUE 2.
-          88 Deckung-Fehlt        VALUE 3.
+          88 Kein-Fehler                 VALUE 0.
+          88 Keine-Zahl                  VALUE 1.
+          88 Betrag-Nicht-Positiv        VALUE 2.
+          88 Deckung-Fehlt               VALUE 3.
+          88 Zu-viele-Nachkommastellen   VALUE 4.
 
        01 Einzahlung PIC S9(9)V99 COMP-3 VALUE 250.00.
        01 Auszahlung PIC S9(9)V99 COMP-3 VALUE 1800.00.
-       01 Eingabe PIC X(30) VALUE SPACES.
-       01 Eingabe-Laenge PIC 9(2) VALUE ZEROS.
+       01 Eingabe PIC X(30)              VALUE SPACES.
+       01 Eingabe-Laenge PIC 9(2)        VALUE ZEROS.
+       01 Position-Index PIC 9(2)        VALUE ZEROS.
+       01 Dezimal-Position PIC 9(2)      VALUE ZEROS.
+       01 Nachkommastellen PIC 9(2)      VALUE ZEROS.
 
        PROCEDURE DIVISION.
            PERFORM EINZAHLUNG-BUCHEN.
@@ -29,26 +33,14 @@
        
        
        EINZAHLUNG-BUCHEN.
-           SET Kein-Fehler TO TRUE
-
+          
            DISPLAY "Einzahlungsbetrag eingeben:"
            ACCEPT Eingabe
+           PERFORM BETRAG-PRUEFEN
 
-           COMPUTE Eingabe-Laenge =
-               FUNCTION LENGTH(FUNCTION TRIM(Eingabe))
-
-           DISPLAY "Eingabelaenge: " Eingabe-Laenge
-
-           IF FUNCTION TEST-NUMVAL(Eingabe) NOT = 0
-               SET Keine-Zahl TO TRUE
-           ELSE
-               IF FUNCTION NUMVAL(Eingabe) > 0
-                   MOVE FUNCTION NUMVAL(Eingabe)
-                       TO Einzahlung
-                   ADD Einzahlung TO Kontostand
-               ELSE
-                   SET Betrag-Nicht-Positiv TO TRUE
-               END-IF
+           IF Kein-Fehler
+               MOVE FUNCTION NUMVAL(Eingabe) TO Einzahlung
+               ADD Einzahlung TO Kontostand
            END-IF
 
            IF Kein-Fehler
@@ -60,24 +52,18 @@
 
 
        AUSZAHLUNG-BUCHEN.
-           SET Kein-Fehler TO TRUE
-
+           
            DISPLAY "Bitte geben Sie den Auszahlungsbetrag ein: ".
            ACCEPT Eingabe.
+           PERFORM BETRAG-PRUEFEN.
            
-              IF FUNCTION TEST-NUMVAL(Eingabe) NOT = 0 THEN
-                 SET Keine-Zahl TO TRUE
+            IF Kein-Fehler THEN
+              MOVE FUNCTION NUMVAL(Eingabe) TO Auszahlung
+              IF Kontostand >= Auszahlung THEN
+                  SUBTRACT Auszahlung FROM Kontostand
               ELSE
-                 IF FUNCTION NUMVAL(Eingabe) > 0 THEN
-                     MOVE FUNCTION NUMVAL(Eingabe) TO Auszahlung
-                     IF Kontostand >= Auszahlung THEN
-                          SUBTRACT Auszahlung FROM Kontostand
-                     ELSE
-                          SET Deckung-Fehlt TO TRUE
-                     END-IF
-                 ELSE
-                     SET Betrag-Nicht-Positiv TO TRUE
-                 END-IF
+                  SET Deckung-Fehlt TO TRUE
+              END-IF
               END-IF
              
               IF Kein-Fehler THEN
@@ -85,6 +71,37 @@
               ELSE
                    PERFORM FEHLER-BEHANDELN
               END-IF.
+
+       BETRAG-PRUEFEN.
+           SET Kein-Fehler TO TRUE
+           MOVE ZERO TO Dezimal-Position
+                        Nachkommastellen
+
+           MOVE FUNCTION TRIM(Eingabe) TO Eingabe
+
+           COMPUTE Eingabe-Laenge =
+               FUNCTION LENGTH(FUNCTION TRIM(Eingabe))
+
+           PERFORM VARYING Position-Index FROM 1 BY 1
+               UNTIL Position-Index > Eingabe-Laenge
+               IF Eingabe(Position-Index:1) = "."
+                   MOVE Position-Index TO Dezimal-Position
+               END-IF
+           END-PERFORM
+
+           IF Dezimal-Position > 0
+               COMPUTE Nachkommastellen =
+                   Eingabe-Laenge - Dezimal-Position
+           END-IF
+
+           EVALUATE TRUE
+               WHEN FUNCTION TEST-NUMVAL(Eingabe) NOT = 0
+                   SET Keine-Zahl TO TRUE
+               WHEN Nachkommastellen > 2
+                   SET Zu-viele-Nachkommastellen TO TRUE
+               WHEN FUNCTION NUMVAL(Eingabe) <= 0
+                   SET Betrag-Nicht-Positiv TO TRUE
+           END-EVALUATE.
 
        FEHLER-BEHANDELN.
            EVALUATE TRUE
@@ -94,6 +111,8 @@
                    DISPLAY "Fehler: Der Betrag muss positiv sein."
                WHEN Deckung-Fehlt
                    DISPLAY "Fehler: Unzureichende Kontodeckung."
+                WHEN Zu-viele-Nachkommastellen
+                   DISPLAY "Fehler: Maximal 2 Nachkommastellen erlaubt."
                 WHEN OTHER
                    DISPLAY "Unbekannter Fehler."
            END-EVALUATE.
