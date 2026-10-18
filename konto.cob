@@ -25,6 +25,7 @@
        01 Position-Index PIC 9(2)        VALUE ZEROS.
        01 Dezimal-Position PIC 9(2)      VALUE ZEROS.
        01 Nachkommastellen PIC 9(2)      VALUE ZEROS.
+       78 MAX-BETRAG                     VALUE 999999999.99.
 
        PROCEDURE DIVISION.
            PERFORM EINZAHLUNG-BUCHEN.
@@ -65,6 +66,9 @@
               MOVE FUNCTION NUMVAL(Eingabe) TO Auszahlung
               IF Kontostand >= Auszahlung THEN
                   SUBTRACT Auszahlung FROM Kontostand
+                  ON SIZE ERROR
+                      SET Zahlenüberschreitung TO TRUE
+                  END-SUBTRACT
               ELSE
                   SET Deckung-Fehlt TO TRUE
               END-IF
@@ -105,7 +109,7 @@
                    SET Zu-viele-Nachkommastellen TO TRUE
                WHEN FUNCTION NUMVAL(Eingabe) <= 0
                    SET Betrag-Nicht-Positiv TO TRUE
-               WHEN FUNCTION NUMVAL(Eingabe) > 999999999.99
+               WHEN FUNCTION NUMVAL(Eingabe) > MAX-BETRAG
                    SET Zahlenüberschreitung TO TRUE
            END-EVALUATE.
 
@@ -120,7 +124,7 @@
                 WHEN Zu-viele-Nachkommastellen
                    DISPLAY "Fehler: Maximal 2 Nachkommastellen erlaubt."
                 WHEN Zahlenüberschreitung
-                   DISPLAY  "Fehler: Zahlenüberschreitung." 
+                   DISPLAY  "Fehler: Zahlenüberschreitung."
                             "Der Betrag ist zu groß."
                 WHEN OTHER
                    DISPLAY "Unbekannter Fehler."
