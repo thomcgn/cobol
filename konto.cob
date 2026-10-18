@@ -8,53 +8,84 @@
            05 Kontoinhaber PIC X(30) VALUE SPACES.
            05 Kontostand PIC S9(9)V99 COMP-3 VALUE 1250.00.
            05 Kontostatus PIC X(1) VALUE "A".
+       
+       
+       01 Fehlercode PIC 9 VALUE 0.
+          88 Kein-Fehler          VALUE 0.
+          88 Keine-Zahl           VALUE 1.
+          88 Betrag-Nicht-Positiv VALUE 2.
+          88 Deckung-Fehlt        VALUE 3.
+
        01 Einzahlung PIC S9(9)V99 COMP-3 VALUE 250.00.
        01 Auszahlung PIC S9(9)V99 COMP-3 VALUE 1800.00.
        01 Eingabe PIC X(30) VALUE SPACES.
        01 Eingabe-Laenge PIC 9(2) VALUE ZEROS.
+
        PROCEDURE DIVISION.
            PERFORM EINZAHLUNG-BUCHEN.
            PERFORM AUSZAHLUNG-BUCHEN.
            STOP RUN.
        
        
+       
        EINZAHLUNG-BUCHEN.
-           DISPLAY "Bitte geben Sie den Einzahlungsbetrag ein: ".
-           ACCEPT Eingabe.
-           COMPUTE Eingabe-Laenge = FUNCTION LENGTH(
-           FUNCTION TRIM(Eingabe)).
-           DISPLAY "Eingabelänge: " Eingabe-Laenge
+           SET Kein-Fehler TO TRUE
 
-           IF FUNCTION TEST-NUMVAL(Eingabe) = 0 THEN
-               IF FUNCTION NUMVAL(Eingabe) >0 THEN
-                    MOVE FUNCTION NUMVAL(Eingabe) TO Einzahlung
-                    ADD Einzahlung TO Kontostand
-                    DISPLAY "Neuer Kontostand nach Einzahlung: "
-                    Kontostand
-               ELSE
-                   DISPLAY "Fehler: Ungültiger Betrag."
-               END-IF
+           DISPLAY "Einzahlungsbetrag eingeben:"
+           ACCEPT Eingabe
+
+           COMPUTE Eingabe-Laenge =
+               FUNCTION LENGTH(FUNCTION TRIM(Eingabe))
+
+           DISPLAY "Eingabelaenge: " Eingabe-Laenge
+
+           IF FUNCTION TEST-NUMVAL(Eingabe) NOT = 0
+               SET Keine-Zahl TO TRUE
            ELSE
-               DISPLAY "Fehler: Ungültiger Betrag."
+               IF FUNCTION NUMVAL(Eingabe) > 0
+                   MOVE FUNCTION NUMVAL(Eingabe)
+                       TO Einzahlung
+                   ADD Einzahlung TO Kontostand
+               ELSE
+                   SET Betrag-Nicht-Positiv TO TRUE
+               END-IF
+           END-IF
+
+           IF Kein-Fehler
+               DISPLAY "Neuer Kontostand: "
+                   Kontostand
+           ELSE
+               PERFORM FEHLER-BEHANDELN
            END-IF.
+
 
        AUSZAHLUNG-BUCHEN.
            DISPLAY "Bitte geben Sie den Auszahlungsbetrag ein: ".
            ACCEPT Eingabe.
-           IF FUNCTION TEST-NUMVAL(Eingabe) = 0 THEN
-               IF FUNCTION NUMVAL(Eingabe) >0 THEN
-               IF FUNCTION NUMVAL(Eingabe) > Kontostand THEN
-                   DISPLAY "Fehler: Kontodeckung nicht ausreichend."
-               ELSE
-                   MOVE FUNCTION NUMVAL(Eingabe) TO Auszahlung
-                   SUBTRACT Auszahlung FROM Kontostand
-                   DISPLAY "Neuer Kontostand: " Kontostand
-               END-IF
+           IF FUNCTION TEST-NUMVAL(Eingabe) NOT = 0 THEN
+                SET Keine-Zahl TO TRUE
               ELSE
-                     DISPLAY "Fehler: Ungültiger Betrag."
+                IF FUNCTION NUMVAL(Eingabe) > 0 THEN
+                     MOVE FUNCTION NUMVAL(Eingabe) TO Auszahlung
+                     IF Kontostand >= Auszahlung THEN
+                          SUBTRACT Auszahlung FROM Kontostand
+                     ELSE
+                          SET Deckung-Fehlt TO TRUE
+                     END-IF
+                ELSE
+                     SET Betrag-Nicht-Positiv TO TRUE
                 END-IF
-            ELSE
-               DISPLAY "Fehler: Ungültiger Betrag."
-            END-IF.
+              END-IF
+              PERFORM FEHLER-BEHANDELN
+              IF Kein-Fehler THEN
+                   DISPLAY "Neuer Kontostand: " Kontostand
+              END-IF.
 
-         
+       FEHLER-BEHANDELN.
+           IF Keine-Zahl THEN
+               DISPLAY "Fehler: Bitte geben Sie eine gültige Zahl ein."
+           ELSE IF Betrag-Nicht-Positiv THEN
+               DISPLAY "Fehler: Der Betrag muss positiv sein."
+           ELSE IF Deckung-Fehlt THEN
+               DISPLAY "Fehler: Nicht genügend Deckung auf dem Konto."
+           END-IF.
