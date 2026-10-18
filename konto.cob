@@ -60,32 +60,40 @@
 
 
        AUSZAHLUNG-BUCHEN.
+           SET Kein-Fehler TO TRUE
+
            DISPLAY "Bitte geben Sie den Auszahlungsbetrag ein: ".
            ACCEPT Eingabe.
-           IF FUNCTION TEST-NUMVAL(Eingabe) NOT = 0 THEN
-                SET Keine-Zahl TO TRUE
+           
+              IF FUNCTION TEST-NUMVAL(Eingabe) NOT = 0 THEN
+                 SET Keine-Zahl TO TRUE
               ELSE
-                IF FUNCTION NUMVAL(Eingabe) > 0 THEN
+                 IF FUNCTION NUMVAL(Eingabe) > 0 THEN
                      MOVE FUNCTION NUMVAL(Eingabe) TO Auszahlung
                      IF Kontostand >= Auszahlung THEN
                           SUBTRACT Auszahlung FROM Kontostand
                      ELSE
                           SET Deckung-Fehlt TO TRUE
                      END-IF
-                ELSE
+                 ELSE
                      SET Betrag-Nicht-Positiv TO TRUE
-                END-IF
+                 END-IF
               END-IF
-              PERFORM FEHLER-BEHANDELN
+             
               IF Kein-Fehler THEN
                    DISPLAY "Neuer Kontostand: " Kontostand
+              ELSE
+                   PERFORM FEHLER-BEHANDELN
               END-IF.
 
        FEHLER-BEHANDELN.
-           IF Keine-Zahl THEN
-               DISPLAY "Fehler: Bitte geben Sie eine gültige Zahl ein."
-           ELSE IF Betrag-Nicht-Positiv THEN
-               DISPLAY "Fehler: Der Betrag muss positiv sein."
-           ELSE IF Deckung-Fehlt THEN
-               DISPLAY "Fehler: Nicht genügend Deckung auf dem Konto."
-           END-IF.
+           EVALUATE TRUE
+               WHEN Keine-Zahl
+                   DISPLAY "Fehler: Keine gültige Zahl."
+               WHEN Betrag-Nicht-Positiv
+                   DISPLAY "Fehler: Der Betrag muss positiv sein."
+               WHEN Deckung-Fehlt
+                   DISPLAY "Fehler: Unzureichende Kontodeckung."
+                WHEN OTHER
+                   DISPLAY "Unbekannter Fehler."
+           END-EVALUATE.
