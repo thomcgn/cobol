@@ -16,6 +16,7 @@
           88 Betrag-Nicht-Positiv        VALUE 2.
           88 Deckung-Fehlt               VALUE 3.
           88 Zu-viele-Nachkommastellen   VALUE 4.
+          88 Zahlenüberschreitung        VALUE 5.
 
        01 Einzahlung PIC S9(9)V99 COMP-3 VALUE 250.00.
        01 Auszahlung PIC S9(9)V99 COMP-3 VALUE 1800.00.
@@ -41,6 +42,9 @@
            IF Kein-Fehler
                MOVE FUNCTION NUMVAL(Eingabe) TO Einzahlung
                ADD Einzahlung TO Kontostand
+               ON SIZE ERROR
+                   SET Zahlenüberschreitung TO TRUE 
+               END-ADD    
            END-IF
 
            IF Kein-Fehler
@@ -101,6 +105,8 @@
                    SET Zu-viele-Nachkommastellen TO TRUE
                WHEN FUNCTION NUMVAL(Eingabe) <= 0
                    SET Betrag-Nicht-Positiv TO TRUE
+               WHEN FUNCTION NUMVAL(Eingabe) > 999999999.99
+                   SET Zahlenüberschreitung TO TRUE
            END-EVALUATE.
 
        FEHLER-BEHANDELN.
@@ -113,6 +119,9 @@
                    DISPLAY "Fehler: Unzureichende Kontodeckung."
                 WHEN Zu-viele-Nachkommastellen
                    DISPLAY "Fehler: Maximal 2 Nachkommastellen erlaubt."
+                WHEN Zahlenüberschreitung
+                   DISPLAY  "Fehler: Zahlenüberschreitung." 
+                            "Der Betrag ist zu groß."
                 WHEN OTHER
                    DISPLAY "Unbekannter Fehler."
            END-EVALUATE.
