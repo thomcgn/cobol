@@ -26,6 +26,8 @@
        01 Dezimal-Anzahl PIC 9(2) VALUE ZERO.
        01 Nachkommastellen PIC 9(2) VALUE ZERO.
 
+       01 Menue-Auswahl PIC X(30) VALUE SPACES.
+
        01 Format-Status PIC X(1) VALUE "G".
           88 Format-Gueltig   VALUE "G".
           88 Format-Ungueltig VALUE "U".
@@ -35,8 +37,27 @@
        PROCEDURE DIVISION.
            
            PERFORM KONTO-ANZEIGEN
-           PERFORM EINZAHLUNG-BUCHEN
-           PERFORM AUSZAHLUNG-BUCHEN
+           
+           PERFORM UNTIL Menue-Auswahl = "3"
+              DISPLAY "1. Einzahlung buchen"
+              DISPLAY "2. Auszahlung buchen"
+              DISPLAY "3. Beenden"
+              DISPLAY "Bitte Option waehlen (1,2 oder 3):"
+              ACCEPT Menue-Auswahl
+
+              EVALUATE Menue-Auswahl
+                 WHEN "1"
+                    PERFORM EINZAHLUNG-BUCHEN
+                 WHEN "2"
+                    PERFORM AUSZAHLUNG-BUCHEN
+                 WHEN "3"
+                    DISPLAY "Programm wird beendet."
+                 WHEN OTHER
+                    DISPLAY "Ungueltige Option." 
+                    DISPLAY "Bitte waehlen Sie 1, 2 oder 3."
+              END-EVALUATE
+              
+           END-PERFORM
            DISPLAY "Endsaldo: " Kontostand
            STOP RUN.
        
