@@ -33,11 +33,29 @@
        78 MAX-BETRAG VALUE 999999999.99.
 
        PROCEDURE DIVISION.
+           
+           PERFORM KONTO-ANZEIGEN
            PERFORM EINZAHLUNG-BUCHEN
            PERFORM AUSZAHLUNG-BUCHEN
            DISPLAY "Endsaldo: " Kontostand
            STOP RUN.
+       
+       KONTO-ANZEIGEN.
+           DISPLAY "Kontonummer: " Kontonummer
+           DISPLAY "Kontoinhaber: " Kontoinhaber
+           DISPLAY "Kontostand: " Kontostand
 
+           EVALUATE TRUE
+               WHEN Aktiv
+                   DISPLAY "Kontostatus: Aktiv"
+               WHEN Inaktiv
+                   DISPLAY "Kontostatus: Inaktiv"
+               WHEN Gesperrt
+                   DISPLAY "Kontostatus: Gesperrt"
+               WHEN OTHER
+                   DISPLAY "Kontostatus: Ungueltig"
+           END-EVALUATE.
+       
        EINZAHLUNG-BUCHEN.
            DISPLAY "Einzahlungsbetrag eingeben:"
            ACCEPT Eingabe
