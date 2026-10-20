@@ -57,6 +57,14 @@
            END-EVALUATE.
        
        EINZAHLUNG-BUCHEN.
+           SET Kein-Fehler TO TRUE
+
+           IF NOT (Aktiv OR Gesperrt)
+               SET Konto-Nicht-Aktiv TO TRUE
+               PERFORM FEHLER-BEHANDELN
+               EXIT PARAGRAPH
+           END-IF
+
            DISPLAY "Einzahlungsbetrag eingeben:"
            ACCEPT Eingabe
 
@@ -79,14 +87,19 @@
            END-IF.
 
        AUSZAHLUNG-BUCHEN.
+           SET Kein-Fehler TO TRUE
+
+           IF NOT Aktiv
+               SET Konto-Nicht-Aktiv TO TRUE
+               PERFORM FEHLER-BEHANDELN
+               EXIT PARAGRAPH
+           END-IF
+
            DISPLAY "Auszahlungsbetrag eingeben:"
            ACCEPT Eingabe
 
            PERFORM BETRAG-PRUEFEN
-           IF Kein-Fehler AND NOT Aktiv
-               SET Konto-Nicht-Aktiv TO TRUE
-           END-IF
-
+           
            IF Kein-Fehler
                MOVE FUNCTION NUMVAL(Eingabe)
                    TO Auszahlung
@@ -202,3 +215,4 @@
                    DISPLAY "Fehler: Unbekannter Status."
            END-EVALUATE.
                           
+       
