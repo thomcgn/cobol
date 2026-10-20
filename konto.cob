@@ -25,19 +25,28 @@
        COPY "BOOKING.cpy".
        01 Historien-Dateistatus PIC XX VALUE SPACES.
 
-       01 Lese-Ende PIC 9 VALUE ZERO.
-          88 Dateiende VALUE 1.
-       01 Export-Gelesen PIC 9 VALUE ZERO.
+       01  Pruefsaldo PIC S9(9)V99 COMP-3 VALUE ZERO.
+       01  Neuer-Pruefsaldo PIC S9(9)V99 COMP-3 VALUE ZERO.
+       01  Import-Betrag PIC 9(9)V99 COMP-3 VALUE ZERO.
+       01  Import-Saldo PIC S9(9)V99 COMP-3 VALUE ZERO.
+       01  Import-Status PIC 9 VALUE ZERO.
+              88 Import-Gueltig VALUE 0.
+              88 Import-Ungueltig VALUE 1.
+       01 Erwartete-Buchungsnummer PIC 9(3) COMP VALUE 1.
 
-       01 Fehlercode PIC 9 VALUE ZERO.
-          88 Kein-Fehler                 VALUE 0.
-          88 Keine-Zahl                  VALUE 1.
-          88 Betrag-Nicht-Positiv        VALUE 2.
-          88 Deckung-Fehlt               VALUE 3.
-          88 Zu-viele-Nachkommastellen   VALUE 4.
-          88 Zahlenueberschreitung       VALUE 5.
-          88 Konto-Nicht-Aktiv           VALUE 6.
-          88 Historie-Voll               VALUE 7.
+       01  Lese-Ende PIC 9 VALUE ZERO.
+              88 Dateiende VALUE 1.
+       01  Export-Gelesen PIC 9 VALUE ZERO.
+
+       01  Fehlercode PIC 9 VALUE ZERO.
+           88 Kein-Fehler                 VALUE 0.
+           88 Keine-Zahl                  VALUE 1.
+           88 Betrag-Nicht-Positiv        VALUE 2.
+           88 Deckung-Fehlt               VALUE 3.
+           88 Zu-viele-Nachkommastellen   VALUE 4.
+           88 Zahlenueberschreitung       VALUE 5.
+           88 Konto-Nicht-Aktiv           VALUE 6.
+           88 Historie-Voll               VALUE 7.
 
        01 Einzahlung PIC S9(9)V99 COMP-3 VALUE ZERO.
        01 Auszahlung PIC S9(9)V99 COMP-3 VALUE ZERO.
@@ -58,9 +67,10 @@
           88 Format-Ungueltig VALUE "U".
 
        78 MAX-BETRAG VALUE 999999999.99.
+       78 STARTSALDO VALUE 1250.00.
 
        PROCEDURE DIVISION.
-
+           
            PERFORM KONTO-ANZEIGEN
 
            PERFORM UNTIL Menue-Auswahl = "3"
@@ -304,7 +314,6 @@
                    DISPLAY "Fehler: Unbekannter Status."
            END-EVALUATE.
 
-
        HISTORIE-ANZEIGEN.
            IF  Buchungsanzahl = ZERO
                DISPLAY "Noch keine Buchungen vorhanden."
@@ -375,9 +384,10 @@
                    Historien-Dateistatus
            END-IF.
 
-
        EXPORT-ANZEIGEN.
       *> Nur Dateiansicht: kein Import in Konto oder Buchungstabelle.
+           MOVE 1 TO Erwartete-Buchungsnummer
+           MOVE STARTSALDO TO Pruefsaldo
            MOVE ZERO TO Lese-Ende Export-Gelesen
            OPEN INPUT Historien-Datei
 
@@ -399,6 +409,12 @@
                    WHEN "00"
                        MOVE 1 TO Export-Gelesen
                        DISPLAY Historien-Zeile
+                       PERFORM IMPORT-WERTE-LESEN
+                       IF Import-Ungueltig
+                           DISPLAY "Dateipruefung abgebrochen."
+                           PERFORM HISTORIEN-DATEI-SCHLIESSEN
+                           EXIT PARAGRAPH
+                       END-IF
                    WHEN "10"
                        SET Dateiende TO TRUE
                    WHEN OTHER
@@ -420,3 +436,141 @@
                DISPLAY "Fehler beim Schliessen: "
                    Historien-Dateistatus
            END-IF.
+       
+       IMPORT-RECHNUNG-TESTEN.
+           MOVE Kontostand TO Pruefsaldo
+           MOVE 100 TO Import-Betrag
+
+           ADD Import-Betrag TO Pruefsaldo
+               GIVING Neuer-Pruefsaldo
+           END-ADD
+
+           MOVE 1340 TO Import-Saldo
+
+           IF Neuer-Pruefsaldo = Import-Saldo
+               DISPLAY "Saldo stimmt mit der Dateizeile ueberein."
+               MOVE Neuer-Pruefsaldo TO Pruefsaldo
+           ELSE
+               DISPLAY "Fehler: Dateisaldo passt nicht zur Buchung."
+           END-IF
+           DISPLAY "Saldo nach Vergleich: " Pruefsaldo
+           DISPLAY "Berechneter Saldo: " Neuer-Pruefsaldo
+           DISPLAY "Echter Kontostand: " Kontostand.
+
+       IMPORT-WERTE-LESEN.
+           SET Import-Gueltig TO TRUE
+           
+           IF Export-Nummer IS NOT NUMERIC
+               DISPLAY "Fehler: Ungueltige Buchungsnummer."
+               SET Import-Ungueltig TO TRUE
+               EXIT PARAGRAPH
+           END-IF
+
+           IF Export-Nummer NOT = Erwartete-Buchungsnummer
+               DISPLAY "Fehler: Buchungsreihenfolge stimmt nicht."
+               SET Import-Ungueltig TO TRUE
+               EXIT PARAGRAPH
+           END-IF
+
+           IF Export-Trenner-1 NOT = ";"
+               OR Export-Trenner-2 NOT = ";"
+               OR Export-Trenner-3 NOT = ";"
+               DISPLAY "Fehler: Ungueltige Trennzeichen."
+               SET Import-Ungueltig TO TRUE
+               EXIT PARAGRAPH
+           END-IF
+
+           IF Export-Art NOT = "E" AND Export-Art NOT = "A"
+               DISPLAY "Fehler: Unbekannte Buchungsart."
+               SET Import-Ungueltig TO TRUE
+               EXIT PARAGRAPH
+           END-IF
+
+           IF Export-Betrag(1:9) IS NOT NUMERIC
+               OR Export-Betrag(10:1) NOT = "."
+               OR Export-Betrag(11:2) IS NOT NUMERIC
+               DISPLAY "Fehler: Ungueltiges Betragsformat."
+               SET Import-Ungueltig TO TRUE
+               EXIT PARAGRAPH
+           END-IF
+
+           IF Export-Saldo(1:1) NOT = "+"
+               AND Export-Saldo(1:1) NOT = "-"
+               DISPLAY "Fehler: Ungueltiges Saldovorzeichen."
+               SET Import-Ungueltig TO TRUE
+               EXIT PARAGRAPH
+           END-IF
+
+           IF Export-Saldo(2:9) IS NOT NUMERIC
+               OR Export-Saldo(11:1) NOT = "."
+               OR Export-Saldo(12:2) IS NOT NUMERIC
+               DISPLAY "Fehler: Ungueltiges Saldoformat."
+               SET Import-Ungueltig TO TRUE
+               EXIT PARAGRAPH
+           END-IF
+           
+           IF FUNCTION TEST-NUMVAL(Export-Betrag) NOT = ZERO
+               SET Import-Ungueltig TO TRUE
+           END-IF
+
+           IF FUNCTION TEST-NUMVAL(Export-Saldo) NOT = ZERO
+               SET Import-Ungueltig TO TRUE
+           END-IF
+
+           IF Import-Ungueltig
+               DISPLAY "Fehler: Ungueltige Zahl in Exportzeile."
+               EXIT PARAGRAPH
+           END-IF
+
+           MOVE FUNCTION NUMVAL(Export-Betrag)
+               TO Import-Betrag
+           MOVE FUNCTION NUMVAL(Export-Saldo)
+               TO Import-Saldo
+
+           IF Import-Betrag <= ZERO
+               DISPLAY "Fehler: Importbetrag muss positiv sein."
+               SET Import-Ungueltig TO TRUE
+               EXIT PARAGRAPH
+           END-IF
+
+           IF Import-Saldo < ZERO
+               DISPLAY "Fehler: Negativer Saldo nicht erlaubt."
+               SET Import-Ungueltig TO TRUE
+               EXIT PARAGRAPH
+           END-IF
+
+                      EVALUATE Export-Art
+               WHEN "E"
+                   COMPUTE Neuer-Pruefsaldo =
+                       Pruefsaldo + Import-Betrag
+                       ON SIZE ERROR
+                           SET Import-Ungueltig TO TRUE
+                   END-COMPUTE
+               WHEN "A"
+                   SUBTRACT Import-Betrag FROM Pruefsaldo
+                       GIVING Neuer-Pruefsaldo
+                       ON SIZE ERROR
+                           SET Import-Ungueltig TO TRUE
+                   END-SUBTRACT
+           END-EVALUATE
+
+           IF Import-Ungueltig
+               DISPLAY "Fehler: Ueberlauf bei Saldenpruefung."
+               EXIT PARAGRAPH
+           END-IF
+
+           IF Neuer-Pruefsaldo NOT = Import-Saldo
+               DISPLAY "Fehler: Saldo passt nicht zur Buchung."
+               SET Import-Ungueltig TO TRUE
+               EXIT PARAGRAPH
+           END-IF
+
+           MOVE Neuer-Pruefsaldo TO Pruefsaldo
+           DISPLAY "Saldenpruefung erfolgreich."
+
+           DISPLAY "Gelesener Betrag: " Import-Betrag
+           DISPLAY "Gelesener Saldo: " Import-Saldo
+           
+           ADD 1 TO Erwartete-Buchungsnummer.
+
+           
