@@ -1,13 +1,31 @@
 
        IDENTIFICATION DIVISION.
        PROGRAM-ID. DEMOBANK.
-
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT Historien-Datei
+               ASSIGN TO "/workspace/cobol/buchungen.txt"
+               ORGANIZATION IS LINE SEQUENTIAL
+               FILE STATUS IS Historien-Dateistatus.
        DATA DIVISION.
+       FILE SECTION.
+
+       FD Historien-Datei.
+       01 Historien-Zeile.
+           05 Export-Nummer PIC 9(3).
+           05 FILLER PIC X.
+           05 Export-Art PIC X.
+           05 FILLER PIC X.
+           05 Export-Betrag PIC 9(9).99.
+           05 FILLER PIC X.
+           05 Export-Saldo PIC +9(9).99.
        WORKING-STORAGE SECTION.
 
        COPY "ACCOUNT.cpy".
        COPY "BOOKING.cpy".
-
+       01 Historien-Dateistatus PIC XX VALUE SPACES.
+       
        01 Fehlercode PIC 9 VALUE ZERO.
           88 Kein-Fehler                 VALUE 0.
           88 Keine-Zahl                  VALUE 1.
@@ -68,6 +86,7 @@
            DISPLAY "Historieneintraege: " Buchungsanzahl
            DISPLAY "Endsaldo: " Kontostand
            PERFORM HISTORIE-ANZEIGEN
+           PERFORM HISTORIE-EXPORTIEREN
            STOP RUN.
        
        KONTO-ANZEIGEN.
@@ -298,3 +317,49 @@
                    Saldo-Danach(Historien-Index)
            END-PERFORM.
 
+       HISTORIE-EXPORTIEREN.
+           OPEN OUTPUT Historien-Datei
+
+           IF Historien-Dateistatus NOT = "00"
+               DISPLAY "Fehler beim Oeffnen: "
+                   Historien-Dateistatus
+               EXIT PARAGRAPH
+           END-IF
+
+           PERFORM VARYING Historien-Index FROM 1 BY 1
+               UNTIL Historien-Index > Buchungsanzahl
+
+               INITIALIZE Historien-Zeile
+               
+               MOVE ";" TO Historien-Zeile(4:1)
+               MOVE ";" TO Historien-Zeile(6:1)
+               MOVE ";" TO Historien-Zeile(19:1)
+               MOVE Buchungsnummer(Historien-Index)
+                   TO Export-Nummer
+               MOVE Buchungsart(Historien-Index)
+                   TO Export-Art
+               MOVE Buchungsbetrag(Historien-Index)
+                   TO Export-Betrag
+               MOVE Saldo-Danach(Historien-Index)
+                   TO Export-Saldo
+
+               WRITE Historien-Zeile
+
+               IF Historien-Dateistatus NOT = "00"
+                   DISPLAY "Fehler beim Schreiben: "
+                       Historien-Dateistatus
+                   CLOSE Historien-Datei
+                   EXIT PARAGRAPH
+               END-IF
+           END-PERFORM
+
+           CLOSE Historien-Datei
+
+           IF Historien-Dateistatus = "00"
+               DISPLAY "Historie exportiert."
+           ELSE
+               DISPLAY "Fehler beim Schliessen: "
+                   Historien-Dateistatus
+           END-IF.
+
+           
