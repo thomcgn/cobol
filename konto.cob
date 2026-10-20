@@ -1,4 +1,3 @@
-
        IDENTIFICATION DIVISION.
        PROGRAM-ID. DEMOBANK.
        ENVIRONMENT DIVISION.
@@ -14,18 +13,22 @@
        FD Historien-Datei.
        01 Historien-Zeile.
            05 Export-Nummer PIC 9(3).
-           05 FILLER PIC X.
+           05 Export-Trenner-1 PIC X.
            05 Export-Art PIC X.
-           05 FILLER PIC X.
+           05 Export-Trenner-2 PIC X.
            05 Export-Betrag PIC 9(9).99.
-           05 FILLER PIC X.
+           05 Export-Trenner-3 PIC X.
            05 Export-Saldo PIC +9(9).99.
        WORKING-STORAGE SECTION.
 
        COPY "ACCOUNT.cpy".
        COPY "BOOKING.cpy".
        01 Historien-Dateistatus PIC XX VALUE SPACES.
-       
+
+       01 Lese-Ende PIC 9 VALUE ZERO.
+          88 Dateiende VALUE 1.
+       01 Export-Gelesen PIC 9 VALUE ZERO.
+
        01 Fehlercode PIC 9 VALUE ZERO.
           88 Kein-Fehler                 VALUE 0.
           88 Keine-Zahl                  VALUE 1.
@@ -48,7 +51,7 @@
        01 Nachkommastellen PIC 9(2) VALUE ZERO.
 
        01 Menue-Auswahl PIC X(30) VALUE SPACES.
-       
+
 
        01 Format-Status PIC X(1) VALUE "G".
           88 Format-Gueltig   VALUE "G".
@@ -57,15 +60,16 @@
        78 MAX-BETRAG VALUE 999999999.99.
 
        PROCEDURE DIVISION.
-           
+
            PERFORM KONTO-ANZEIGEN
-           
+
            PERFORM UNTIL Menue-Auswahl = "3"
               DISPLAY "1. Einzahlung buchen"
               DISPLAY "2. Auszahlung buchen"
               DISPLAY "3. Beenden"
               DISPLAY "4. Historie anzeigen"
-              DISPLAY "Bitte Option waehlen (1 - 4):"
+              DISPLAY "5. Letzten Export anzeigen"
+              DISPLAY "Bitte Option waehlen (1 - 5):"
               ACCEPT Menue-Auswahl
 
               EVALUATE Menue-Auswahl
@@ -77,18 +81,20 @@
                     DISPLAY "Programm wird beendet."
                  WHEN "4"
                     PERFORM HISTORIE-ANZEIGEN
+                 WHEN "5"
+                    PERFORM EXPORT-ANZEIGEN
                  WHEN OTHER
-                    DISPLAY "Ungueltige Option." 
-                    DISPLAY "Bitte waehlen Sie 1, 2 oder 3."
+                    DISPLAY "Ungueltige Option."
+                    DISPLAY "Bitte waehlen Sie 1 bis 5."
               END-EVALUATE
-              
+
            END-PERFORM
            DISPLAY "Historieneintraege: " Buchungsanzahl
            DISPLAY "Endsaldo: " Kontostand
            PERFORM HISTORIE-ANZEIGEN
            PERFORM HISTORIE-EXPORTIEREN
            STOP RUN.
-       
+
        KONTO-ANZEIGEN.
            DISPLAY "Kontonummer: " Kontonummer
            DISPLAY "Kontoinhaber: " Kontoinhaber
@@ -104,7 +110,7 @@
                WHEN OTHER
                    DISPLAY "Kontostatus: Ungueltig"
            END-EVALUATE.
-       
+
        EINZAHLUNG-BUCHEN.
            SET Kein-Fehler TO TRUE
 
@@ -132,7 +138,7 @@
                    ON SIZE ERROR
                        SET Zahlenueberschreitung TO TRUE
                END-ADD
-                              IF Kein-Fehler
+               IF Kein-Fehler
                    ADD 1 TO Buchungsanzahl
                    MOVE Buchungsanzahl
                        TO Buchungsnummer(Buchungsanzahl)
@@ -143,7 +149,7 @@
                    MOVE Kontostand
                        TO Saldo-Danach(Buchungsanzahl)
                END-IF
-              
+
            END-IF
 
            IF Kein-Fehler
@@ -165,11 +171,11 @@
            ACCEPT Eingabe
 
            PERFORM BETRAG-PRUEFEN
-           
+
            IF Kein-Fehler AND Buchungsanzahl >= 100
                SET Historie-Voll TO TRUE
            END-IF
-           
+
            IF Kein-Fehler
                MOVE FUNCTION NUMVAL(Eingabe)
                    TO Auszahlung
@@ -292,13 +298,13 @@
                        WHEN OTHER
                            DISPLAY "Fehler: Ungueltiger Kontostatus."
                    END-EVALUATE
-                WHEN Historie-Voll
-                     DISPLAY "Fehler: Buchungshistorie ist voll."
-                WHEN OTHER
+               WHEN Historie-Voll
+                   DISPLAY "Fehler: Buchungshistorie ist voll."
+               WHEN OTHER
                    DISPLAY "Fehler: Unbekannter Status."
            END-EVALUATE.
-                          
-       
+
+
        HISTORIE-ANZEIGEN.
            IF  Buchungsanzahl = ZERO
                DISPLAY "Noch keine Buchungen vorhanden."
@@ -318,6 +324,12 @@
            END-PERFORM.
 
        HISTORIE-EXPORTIEREN.
+      *> Ein leerer Durchlauf soll den letzten Export nicht loeschen.
+           IF Buchungsanzahl = ZERO
+               DISPLAY "Keine Buchungen: Export bleibt unveraendert."
+               EXIT PARAGRAPH
+           END-IF
+
            OPEN OUTPUT Historien-Datei
 
            IF Historien-Dateistatus NOT = "00"
@@ -330,10 +342,11 @@
                UNTIL Historien-Index > Buchungsanzahl
 
                INITIALIZE Historien-Zeile
-               
-               MOVE ";" TO Historien-Zeile(4:1)
-               MOVE ";" TO Historien-Zeile(6:1)
-               MOVE ";" TO Historien-Zeile(19:1)
+
+               MOVE ";" TO Export-Trenner-1
+                           Export-Trenner-2
+                           Export-Trenner-3
+
                MOVE Buchungsnummer(Historien-Index)
                    TO Export-Nummer
                MOVE Buchungsart(Historien-Index)
@@ -348,7 +361,7 @@
                IF Historien-Dateistatus NOT = "00"
                    DISPLAY "Fehler beim Schreiben: "
                        Historien-Dateistatus
-                   CLOSE Historien-Datei
+                   PERFORM HISTORIEN-DATEI-SCHLIESSEN
                    EXIT PARAGRAPH
                END-IF
            END-PERFORM
@@ -362,4 +375,48 @@
                    Historien-Dateistatus
            END-IF.
 
-           
+
+       EXPORT-ANZEIGEN.
+      *> Nur Dateiansicht: kein Import in Konto oder Buchungstabelle.
+           MOVE ZERO TO Lese-Ende Export-Gelesen
+           OPEN INPUT Historien-Datei
+
+           IF Historien-Dateistatus = "35"
+               DISPLAY "Noch keine Exportdatei vorhanden."
+               EXIT PARAGRAPH
+           END-IF
+
+           IF Historien-Dateistatus NOT = "00"
+               DISPLAY "Fehler beim Oeffnen des Exports: "
+                   Historien-Dateistatus
+               EXIT PARAGRAPH
+           END-IF
+
+           DISPLAY "Letzter Export (keine aktuellen Sitzungsdaten):"
+           PERFORM UNTIL Dateiende
+               READ Historien-Datei
+               EVALUATE Historien-Dateistatus
+                   WHEN "00"
+                       MOVE 1 TO Export-Gelesen
+                       DISPLAY Historien-Zeile
+                   WHEN "10"
+                       SET Dateiende TO TRUE
+                   WHEN OTHER
+                       DISPLAY "Fehler beim Lesen: "
+                           Historien-Dateistatus
+                       PERFORM HISTORIEN-DATEI-SCHLIESSEN
+                       EXIT PARAGRAPH
+               END-EVALUATE
+           END-PERFORM
+
+           IF Export-Gelesen = ZERO
+               DISPLAY "Die Exportdatei ist leer."
+           END-IF
+           PERFORM HISTORIEN-DATEI-SCHLIESSEN.
+
+       HISTORIEN-DATEI-SCHLIESSEN.
+           CLOSE Historien-Datei
+           IF Historien-Dateistatus NOT = "00"
+               DISPLAY "Fehler beim Schliessen: "
+                   Historien-Dateistatus
+           END-IF.
