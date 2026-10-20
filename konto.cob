@@ -9,7 +9,10 @@
            05 Kontonummer PIC 9(10) VALUE ZEROS.
            05 Kontoinhaber PIC X(30) VALUE SPACES.
            05 Kontostand PIC S9(9)V99 COMP-3 VALUE 1250.00.
-           05 Kontostatus PIC X(1) VALUE "A".
+           05 Kontostatus PIC X(1) VALUE "G".
+              88 Aktiv VALUE "A".
+              88 Inaktiv VALUE "I".
+              88 Gesperrt VALUE "G".
 
        01 Fehlercode PIC 9 VALUE ZERO.
           88 Kein-Fehler                 VALUE 0.
@@ -18,6 +21,7 @@
           88 Deckung-Fehlt               VALUE 3.
           88 Zu-viele-Nachkommastellen   VALUE 4.
           88 Zahlenueberschreitung       VALUE 5.
+          88 Konto-Nicht-Aktiv             VALUE 6.
 
        01 Einzahlung PIC S9(9)V99 COMP-3 VALUE ZERO.
        01 Auszahlung PIC S9(9)V99 COMP-3 VALUE ZERO.
@@ -67,6 +71,9 @@
            ACCEPT Eingabe
 
            PERFORM BETRAG-PRUEFEN
+           IF Kein-Fehler AND NOT Aktiv
+               SET Konto-Nicht-Aktiv TO TRUE
+           END-IF
 
            IF Kein-Fehler
                MOVE FUNCTION NUMVAL(Eingabe)
@@ -170,7 +177,16 @@
                WHEN Zahlenueberschreitung
                    DISPLAY "Fehler: Zahlenueberschreitung."
                    DISPLAY "Betrag oder Kontostand zu gross."
-
+              WHEN Konto-Nicht-Aktiv
+                   EVALUATE TRUE
+                       WHEN Inaktiv
+                           DISPLAY "Fehler: Konto ist inaktiv."
+                       WHEN Gesperrt
+                           DISPLAY "Fehler: Konto ist gesperrt."
+                       WHEN OTHER
+                           DISPLAY "Fehler: Ungueltiger Kontostatus."
+                   END-EVALUATE
                WHEN OTHER
                    DISPLAY "Fehler: Unbekannter Status."
            END-EVALUATE.
+                          

@@ -4,8 +4,18 @@
   "tasks": [
     {
       "label": "COBOL: Kompilieren und starten",
-      "type": "shell",
-      "command": "docker exec -w /workspace cobol-dev cobc -x -fixed -o /tmp/konto konto.cob && docker exec -i -w /workspace cobol-dev /tmp/konto",
+      "type": "process",
+      "command": "docker",
+      "args": [
+        "exec",
+        "-i",
+        "cobol-dev",
+        "sh",
+        "-c",
+        "src=\"$1\"; base=\"/home/tom/Schreibtisch/\"; case \"$src\" in \"$base\"*) src=\"/workspace/${src#\"$base\"}\" ;; *) echo 'Fehler: Datei liegt nicht auf dem Schreibtisch' >&2; exit 1 ;; esac; cobc -x -fixed -o /tmp/cobol-current \"$src\" && exec /tmp/cobol-current",
+        "sh",
+        "${file}"
+      ],
       "group": {
         "kind": "build",
         "isDefault": true
