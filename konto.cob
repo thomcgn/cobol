@@ -46,7 +46,8 @@
               DISPLAY "1. Einzahlung buchen"
               DISPLAY "2. Auszahlung buchen"
               DISPLAY "3. Beenden"
-              DISPLAY "Bitte Option waehlen (1,2 oder 3):"
+              DISPLAY "4. Historie anzeigen"
+              DISPLAY "Bitte Option waehlen (1 - 4):"
               ACCEPT Menue-Auswahl
 
               EVALUATE Menue-Auswahl
@@ -56,6 +57,8 @@
                     PERFORM AUSZAHLUNG-BUCHEN
                  WHEN "3"
                     DISPLAY "Programm wird beendet."
+                 WHEN "4"
+                    PERFORM HISTORIE-ANZEIGEN
                  WHEN OTHER
                     DISPLAY "Ungueltige Option." 
                     DISPLAY "Bitte waehlen Sie 1, 2 oder 3."
@@ -278,6 +281,10 @@
                           
        
        HISTORIE-ANZEIGEN.
+           IF  Buchungsanzahl = ZERO
+               DISPLAY "Noch keine Buchungen vorhanden."
+               EXIT PARAGRAPH
+           END-IF
            PERFORM VARYING Historien-Index FROM 1 BY 1
                UNTIL Historien-Index > Buchungsanzahl
 
