@@ -6,6 +6,7 @@
        WORKING-STORAGE SECTION.
 
        COPY "ACCOUNT.cpy".
+       COPY "BOOKING.cpy".
 
        01 Fehlercode PIC 9 VALUE ZERO.
           88 Kein-Fehler                 VALUE 0.
@@ -14,10 +15,12 @@
           88 Deckung-Fehlt               VALUE 3.
           88 Zu-viele-Nachkommastellen   VALUE 4.
           88 Zahlenueberschreitung       VALUE 5.
-          88 Konto-Nicht-Aktiv             VALUE 6.
+          88 Konto-Nicht-Aktiv           VALUE 6.
+          88 Historie-Voll               VALUE 7.
 
        01 Einzahlung PIC S9(9)V99 COMP-3 VALUE ZERO.
        01 Auszahlung PIC S9(9)V99 COMP-3 VALUE ZERO.
+       01 Historien-Index PIC 9(3) COMP VALUE ZERO.
 
        01 Eingabe PIC X(30) VALUE SPACES.
        01 Eingabe-Laenge PIC 9(2) VALUE ZERO.
@@ -27,6 +30,7 @@
        01 Nachkommastellen PIC 9(2) VALUE ZERO.
 
        01 Menue-Auswahl PIC X(30) VALUE SPACES.
+       
 
        01 Format-Status PIC X(1) VALUE "G".
           88 Format-Gueltig   VALUE "G".
@@ -58,7 +62,9 @@
               END-EVALUATE
               
            END-PERFORM
+           DISPLAY "Historieneintraege: " Buchungsanzahl
            DISPLAY "Endsaldo: " Kontostand
+           PERFORM HISTORIE-ANZEIGEN
            STOP RUN.
        
        KONTO-ANZEIGEN.
@@ -90,6 +96,11 @@
            ACCEPT Eingabe
 
            PERFORM BETRAG-PRUEFEN
+           IF Kein-Fehler
+               IF Buchungsanzahl >= 100
+                   SET Historie-Voll TO TRUE
+               END-IF
+           END-IF
 
            IF Kein-Fehler
                MOVE FUNCTION NUMVAL(Eingabe)
@@ -99,6 +110,18 @@
                    ON SIZE ERROR
                        SET Zahlenueberschreitung TO TRUE
                END-ADD
+                              IF Kein-Fehler
+                   ADD 1 TO Buchungsanzahl
+                   MOVE Buchungsanzahl
+                       TO Buchungsnummer(Buchungsanzahl)
+                   MOVE "E"
+                       TO Buchungsart(Buchungsanzahl)
+                   MOVE Einzahlung
+                       TO Buchungsbetrag(Buchungsanzahl)
+                   MOVE Kontostand
+                       TO Saldo-Danach(Buchungsanzahl)
+               END-IF
+              
            END-IF
 
            IF Kein-Fehler
@@ -121,6 +144,10 @@
 
            PERFORM BETRAG-PRUEFEN
            
+           IF Kein-Fehler AND Buchungsanzahl >= 100
+               SET Historie-Voll TO TRUE
+           END-IF
+           
            IF Kein-Fehler
                MOVE FUNCTION NUMVAL(Eingabe)
                    TO Auszahlung
@@ -130,6 +157,17 @@
                        ON SIZE ERROR
                            SET Zahlenueberschreitung TO TRUE
                    END-SUBTRACT
+                   IF Kein-Fehler
+                       ADD 1 TO Buchungsanzahl
+                       MOVE Buchungsanzahl
+                           TO Buchungsnummer(Buchungsanzahl)
+                       MOVE "A"
+                           TO Buchungsart(Buchungsanzahl)
+                       MOVE Auszahlung
+                           TO Buchungsbetrag(Buchungsanzahl)
+                       MOVE Kontostand
+                           TO Saldo-Danach(Buchungsanzahl)
+                   END-IF
                ELSE
                    SET Deckung-Fehlt TO TRUE
                END-IF
@@ -223,7 +261,7 @@
                WHEN Zahlenueberschreitung
                    DISPLAY "Fehler: Zahlenueberschreitung."
                    DISPLAY "Betrag oder Kontostand zu gross."
-              WHEN Konto-Nicht-Aktiv
+               WHEN Konto-Nicht-Aktiv
                    EVALUATE TRUE
                        WHEN Inaktiv
                            DISPLAY "Fehler: Konto ist inaktiv."
@@ -232,8 +270,24 @@
                        WHEN OTHER
                            DISPLAY "Fehler: Ungueltiger Kontostatus."
                    END-EVALUATE
-               WHEN OTHER
+                WHEN Historie-Voll
+                     DISPLAY "Fehler: Buchungshistorie ist voll."
+                WHEN OTHER
                    DISPLAY "Fehler: Unbekannter Status."
            END-EVALUATE.
                           
        
+       HISTORIE-ANZEIGEN.
+           PERFORM VARYING Historien-Index FROM 1 BY 1
+               UNTIL Historien-Index > Buchungsanzahl
+
+               DISPLAY "Buchung: "
+                   Buchungsnummer(Historien-Index)
+               DISPLAY "Art: "
+                   Buchungsart(Historien-Index)
+               DISPLAY "Betrag: "
+                   Buchungsbetrag(Historien-Index)
+               DISPLAY "Saldo danach: "
+                   Saldo-Danach(Historien-Index)
+           END-PERFORM.
+
