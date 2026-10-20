@@ -1,4 +1,3 @@
-
 {
   "version": "2.0.0",
   "tasks": [
@@ -12,7 +11,7 @@
         "cobol-dev",
         "sh",
         "-c",
-        "src=\"$1\"; base=\"/home/tom/Schreibtisch/\"; case \"$src\" in \"$base\"*) src=\"/workspace/${src#\"$base\"}\" ;; *) echo 'Fehler: Datei liegt nicht auf dem Schreibtisch' >&2; exit 1 ;; esac; cobc -x -fixed -o /tmp/cobol-current \"$src\" && exec /tmp/cobol-current",
+        "src=\"$1\"; base=\"/home/tom/Schreibtisch/\"; case \"$src\" in \"$base\"*) src=\"/workspace/${src#\"$base\"}\" ;; *) echo 'Fehler: Datei liegt nicht auf dem Schreibtisch' >&2; exit 1 ;; esac; case \"$src\" in *.cob|*.cbl|*.COB|*.CBL) ;; *) echo 'Fehler: Bitte eine COBOL-Quelldatei öffnen.' >&2; exit 1 ;; esac; cobc -x -fixed -I \"$(dirname \"$src\")\" -o /tmp/cobol-current \"$src\" && exec /tmp/cobol-current",
         "sh",
         "${file}"
       ],

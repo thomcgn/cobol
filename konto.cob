@@ -5,14 +5,7 @@
        DATA DIVISION.
        WORKING-STORAGE SECTION.
 
-       01 Konto.
-           05 Kontonummer PIC 9(10) VALUE ZEROS.
-           05 Kontoinhaber PIC X(30) VALUE SPACES.
-           05 Kontostand PIC S9(9)V99 COMP-3 VALUE 1250.00.
-           05 Kontostatus PIC X(1) VALUE "G".
-              88 Aktiv VALUE "A".
-              88 Inaktiv VALUE "I".
-              88 Gesperrt VALUE "G".
+       COPY "ACCOUNT.cpy".
 
        01 Fehlercode PIC 9 VALUE ZERO.
           88 Kein-Fehler                 VALUE 0.
@@ -42,6 +35,7 @@
        PROCEDURE DIVISION.
            PERFORM EINZAHLUNG-BUCHEN
            PERFORM AUSZAHLUNG-BUCHEN
+           DISPLAY "Endsaldo: " Kontostand
            STOP RUN.
 
        EINZAHLUNG-BUCHEN.
